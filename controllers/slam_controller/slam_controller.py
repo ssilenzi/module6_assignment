@@ -232,10 +232,21 @@ def resample_particles(particles):
     # weights.
 
     new_particles = []
-    # remove the following line
-    new_particles = particles
-    
-    #### your code goes here ###############
+    step = 1.0 / len(particles)
+    u = np.random.uniform(0, step)
+    c = particles[0]['weight']
+    i = 0
+
+    for particle in particles:
+
+        while u > c:
+            i = i + 1
+            c = c + particles[i]['weight']
+
+        new_particles.append(copy.deepcopy(particles[i]))
+        new_particles[-1]['weight'] = 1.0 / len(particles)
+
+        u = u + step
 
     return new_particles
 
