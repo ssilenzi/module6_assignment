@@ -161,7 +161,8 @@ def eval_sensor_model(measurements, particles):
     # sensor noise
     R_t = np.array([[1.0, 0],
                     [0, 1.0]])
-
+                    
+     
     # measured landmark ids and ranges
     ids = measurements['id']
     x_dists = measurements['x']
@@ -169,9 +170,58 @@ def eval_sensor_model(measurements, particles):
 
     # update landmarks and calculate weight for each particle
     for particle in particles:
+    
+        x_pos = particle['x']
+        y_pos = particle['y']
+            
+        w_k = 1
+        
+        landmarks = particle['landmarks']
+        for i in ids:
+        
+            d_x = x_dists[i]
+            d_y = y_dists[i]
+            
+            z_x = d_x + x_pos
+            z_y = d_y + y_pos
+            
+            z = [z_x,z_y]
+            
+            landmark = landmarks[i]
+            
+            # Initilization
+            if landmark['observed'] == False:
+            
+                landmark['observed'] = True
+                landmark['sigma'] = R_t
+                landmark['mu'] = [z_x,z_y]
+                
+            else:
+                
+                C_t = np.array([[1.0, 0],
+                    [0, 1.0]])
+                mu_prev = landmark['mu']
+                sigma_prev = landmark['sigma']
+                
+                z_cap = C_t*mu_prev
+                Q = C_t*sigma_prev*C_t.T + R_t
+                K = sigma_prev*C_t.T*np.linalg.inv(Q)
+                
+                mu = mu_prev + K*(z - z_cap)
+                sigma = (np.identity(2) - K*C_t)*sigma_prev
+                
+                w_k = w_k*np.random.normal(z_cap,Q)
+                
+                particle['weight'] = w_k
+    w_tot = 0
 
-        #### your code goes here ######
-        pass
+    for particle in particles:
+        w_tot += particle['weight']
+    
+    for particle in particles:
+        particle['weight'] = particle['weight']/w_tot
+    
+    return   
 
 
 ###################### MOTION MODEL ###########################################
@@ -232,13 +282,23 @@ def resample_particles(particles):
     # weights.
 
     new_particles = []
-    # remove the following line
-    new_particles = particles
-    
-    #### your code goes here ###############
+    sparticles = copy.deepcopy(particles)
+    c = 0
+    for particle in sparticles:
+        c = c + particle['weight']
+    u = np.random.uniform(len(sparticles)**-1,0)
+    i = 1
+
+    for particle in sparticles:
+        while(u > c):
+            i = i+1
+
+
+        #particle['weight'] = len(sparticles)**-1
+        new_particles.append(sparticles[i])
+        u = u + len(sparticles)**-1
 
     return new_particles
-
 
 ####################### MAIN ##################################################
 def main():
