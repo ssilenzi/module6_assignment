@@ -178,7 +178,7 @@ def eval_sensor_model(measurements, particles):
             x_dist = particle['x'] + x_dists[i]
             y_dist = particle['y'] + y_dists[i]
             z = np.array([x_dist, y_dist])
-            if particle['landmarks'][id]['observed'] == True: # landmark already observed
+            if particle['landmarks'][id]['observed']: # landmark already observed
                 mu = particle['landmarks'][id]['mu']
                 sigma = particle['landmarks'][id]['sigma']
             else: # first observation
@@ -187,11 +187,17 @@ def eval_sensor_model(measurements, particles):
                 sigma = R_t
 
             # update landmark mean and covariance
+            # C_t = np.identity(2)
+            # z_hat = C_t @ mu
+            # Q = C_t @ sigma @ C_t.T + R_t
+            # K = sigma @ C_t.T @ np.linalg.inv(Q)
+            # mu = mu + K @ (z - z_hat)
+            # sigma = (np.identity(2) - K @ C_t) @ sigma
             z_hat = mu
             Q = sigma + R_t
             K = sigma @ np.linalg.inv(Q)
             particle['landmarks'][id]['mu'] = mu + K @ (z - z_hat)
-            particle['landmarks'][id]['sigma'] = (np.eye(2) - K) @ sigma
+            particle['landmarks'][id]['sigma'] = (np.identity(2) - K) @ sigma
 
             # update particle weight
             particle['weight'] *= multivariate_normal.pdf(z, mean=z_hat, cov=Q)
