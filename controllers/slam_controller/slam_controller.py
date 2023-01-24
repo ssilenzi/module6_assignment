@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import multivariate_normal
 import math
 import sys
 import copy
@@ -166,12 +166,40 @@ def eval_sensor_model(measurements, particles):
     ids = measurements['id']
     x_dists = measurements['x']
     y_dists = measurements['y']
+    sum_weights = 0.0
 
     # update landmarks and calculate weight for each particle
     for particle in particles:
+        
+        particle['weight'] = 1.0
+        for i in range(len(ids)):
+            id = ids[i]
+            x_dist = particle['x'] + x_dists[i]
+            y_dist = particle['y'] + y_dists[i]
+            z = np.array([x_dist, y_dist])
+            mu = particle['landmarks'][id]['mu']
+            sigma = particle['landmarks'][id]['sigma']
 
-        #### your code goes here ######
-        pass
+            # update landmark mean and covariance
+            z_hat = mu
+            Q = sigma + R_t
+            K = sigma @ np.linalg.inv(Q)
+            mu += K @ (z - z_hat)
+            sigma = (np.eye(2) - K) @ sigma
+            particle['landmarks'][id]['mu'] = mu
+            particle['landmarks'][id]['sigma'] = sigma
+
+            # update particle weight
+            particle['weight'] *= multivariate_normal.pdf(z, mean=z_hat, cov=Q)
+
+            # update observed flag
+            particle['landmarks'][id]['observed'] = True
+
+        sum_weights += particle['weight']
+    
+    # normalize weights
+    for particle in particles:
+        particle['weight'] /= sum_weights
 
 
 ###################### MOTION MODEL ###########################################
