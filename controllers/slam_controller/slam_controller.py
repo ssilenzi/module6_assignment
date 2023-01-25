@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import multivariate_normal
 import math
 import sys
 import copy
@@ -166,12 +166,47 @@ def eval_sensor_model(measurements, particles):
     ids = measurements['id']
     x_dists = measurements['x']
     y_dists = measurements['y']
+    sum_weights = 0.0
 
     # update landmarks and calculate weight for each particle
     for particle in particles:
+        
+        particle['weight'] = 1.0
 
-        #### your code goes here ######
-        pass
+        for i in range(len(ids)):
+            id = ids[i]
+            x_dist = particle['x'] + x_dists[i]
+            y_dist = particle['y'] + y_dists[i]
+            z = np.array([x_dist, y_dist])
+            if particle['landmarks'][id]['observed']: # landmark already observed
+                mu = particle['landmarks'][id]['mu']
+                sigma = particle['landmarks'][id]['sigma']
+            else: # first observation
+                particle['landmarks'][id]['observed'] = True
+                mu = z
+                sigma = R_t
+
+            # update landmark mean and covariance
+            # C_t = np.identity(2)
+            # z_hat = C_t @ mu
+            # Q = C_t @ sigma @ C_t.T + R_t
+            # K = sigma @ C_t.T @ np.linalg.inv(Q)
+            # mu = mu + K @ (z - z_hat)
+            # sigma = (np.identity(2) - K @ C_t) @ sigma
+            z_hat = mu
+            Q = sigma + R_t
+            K = sigma @ np.linalg.inv(Q)
+            particle['landmarks'][id]['mu'] = mu + K @ (z - z_hat)
+            particle['landmarks'][id]['sigma'] = (np.identity(2) - K) @ sigma
+
+            # update particle weight
+            particle['weight'] *= multivariate_normal.pdf(z, mean=z_hat, cov=Q)
+
+        sum_weights += particle['weight']
+    
+    # normalize weights
+    for particle in particles:
+        particle['weight'] /= sum_weights
 
 
 ###################### MOTION MODEL ###########################################
@@ -232,10 +267,21 @@ def resample_particles(particles):
     # weights.
 
     new_particles = []
-    # remove the following line
-    new_particles = particles
-    
-    #### your code goes here ###############
+    step = 1.0 / len(particles)
+    u = np.random.uniform(0, step)
+    c = particles[0]['weight']
+    i = 0
+
+    for particle in particles:
+
+        while u > c:
+            i = i + 1
+            c = c + particles[i]['weight']
+
+        new_particles.append(copy.deepcopy(particles[i]))
+        new_particles[-1]['weight'] = 1.0 / len(particles)
+
+        u = u + step
 
     return new_particles
 
